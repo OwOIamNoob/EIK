@@ -1,0 +1,63 @@
+<Check@MDCheckbox>:
+    group: 'group'
+    size_hint: None, None
+    size: dp(48), dp(48)
+
+MDScreen:
+    MDFloatLayout:
+        size_hint: 1, .6
+        pos_hint: {'center_x': .5, 'center_y': .7}
+        md_bg_color: '112121'
+
+        FitImage:
+            size_hint_y: 1
+            pos_hint: {'center_x': .5, 'center_y': .5}
+            source: 'data/bg.jpg'
+
+    MDFloatLayout:
+        size_hint: 1, .4
+        pos_hint: {'center_x': .5, 'center_y': .2}
+
+
+        MDLabel:
+            text: 'Everything is keyboard'
+            font_size: '40sp'
+            pos_hint: {'center_x': .5, 'center_y': .8}
+            color: '20a3d6'
+            halign: 'center'
+
+        Check:
+            id: normal
+            active: True
+            pos_hint: {'center_x': .2, 'center_y': .5}
+            on_press:
+                app.switch(self)
+
+        MDLabel:
+            text: 'Chế độ bàn phím ảo'
+            font_size: '20sp'
+            pos_hint: {'center_x': .32, 'center_y': .5}
+            color: '000000'
+            halign: 'center'
+
+        Check:
+            id: super
+            pos_hint: {'center_x': .6, 'center_y': .5}
+            on_press:
+                app.switch(self)
+
+        MDLabel:
+            text: 'Chế độ bàn phím siêu ảo'
+            font_size: '20sp'
+            pos_hint: {'center_x': .74, 'center_y': .5}
+            color: '000000'
+            halign: 'center'
+
+        MDFillRoundFlatButton:
+            id: button
+            text: 'Bật ngay và luôn!'
+            pos_hint: {'center_x': .5, 'center_y': .2}
+            size_hint_x: .3
+            font_size: '25sp'
+            on_press:
+                app.active_keyboard()
