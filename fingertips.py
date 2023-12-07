@@ -6,6 +6,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 
 mp_hands = mp.solutions.hands
 
+
 class HandProcessing:
     def __init__(self):
         self.prev_left = {
@@ -107,7 +108,7 @@ class HandProcessing:
                             action.append({
                                 'finger': finger,
                                 'type_hand': type_hand,
-                            }
+                                }
                             )
 
                             input_img = cv2.putText(input_img, text=finger + ' ' + type_hand + ': PRESS',

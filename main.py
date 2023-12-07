@@ -1,43 +1,66 @@
 import cv2
-import fingertips as ft
-import action as act
-import image
+from kivy.lang import Builder
+from kivymd.app import MDApp
+from kivy.core.window import Window
+from kivy.clock import Clock
+import virtual
+import super_virtual as svirtual
 
-def run():
-    laptop_cap = cv2.VideoCapture(0)
-    mobile_cap = cv2.VideoCapture(0)
-    mobile_cap.open('http://192.168.43.1:8080/video')
-    laptop_hand = ft.HandProcessing()
-    mobile_hand = ft.HandProcessing()
+Window.size = (960, 720)
+Window.top = 50
+Window.left = 250
 
-    key_info = None
 
-    while True:
-        _, laptop_img = laptop_cap.read()
-        _, mobile_img = mobile_cap.read()
-        laptop_img = cv2.flip(laptop_img, 1)
+class EIK(MDApp):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.screen = Builder.load_file('app.kv')
 
-        mobile_img = cv2.flip(mobile_img, 0)
-        mobile_img = cv2.flip(mobile_img, 1)
+        self.enable = False
+        self.mode = 'Normal'  # 'Super'
+        Clock.schedule_interval(self.running, 1.0/300.0)
 
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-        if key == ord('p'):
-            cv2.imwrite('key.png', mobile_img)
-            process_img, act.key_info = image.image_process('key.png')
-            cv2.imshow('Process Image', process_img)
+        self.virtual = virtual.Virtual()
+        self.super_virtual = svirtual.SuperVirtual()
 
-        laptop_img, actions = laptop_hand.press_detect(laptop_img)
-        mobile_img = mobile_hand.get_hand_info(mobile_img)
+    def build(self):
+        return self.screen
 
-        mobile_img = act.draw_info(mobile_img)
-        mobile_img = act.action_processing(actions, mobile_hand.hands_coordinates, mobile_img)
+    def switch(self, box):
+        other_box = (
+            self.root.ids.normal
+            if box == self.root.ids.super
+            else self.root.ids.super
+        )
+        other_box.active = not box.active
 
-        cv2.imshow('Press Detection', laptop_img)
-        cv2.imshow('Keyboard Extraction', mobile_img)
+    def active_keyboard(self):
+        if self.enable:
+            self.quit()
 
+        else:
+            self.enable = True
+            self.screen.ids.button.text = 'Tắt'
+
+            if self.screen.ids.normal.active:
+                self.mode = 'Normal'
+                self.virtual.open()
+            else:
+                self.mode = 'Super'
+                self.super_virtual.open()
+
+    def quit(self):
+        cv2.destroyAllWindows()
+        self.screen.ids.button.text = 'Bật ngay và luôn'
+        self.enable = False
+
+    def running(self, *args):
+        if self.enable:
+            if self.mode == 'Normal':
+                self.virtual.run(self)
+            else:
+                self.super_virtual.run(self)
 
 
 if __name__ == '__main__':
-    run()
+    EIK().run()
