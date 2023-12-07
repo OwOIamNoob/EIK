@@ -50,8 +50,6 @@ def project(point3ds, mtx):
     output = np.divide(output, output[:, 2].reshape([-1,1]))
     return output
 
-def deproject(point2ds, mtx, dist):
-    pass
 import matplotlib.pyplot as plt
 
 _, mtx_1, dist_1, rvec_1, tvec_1 = calibrate("data/trash", (700, 490))

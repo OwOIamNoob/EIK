@@ -105,6 +105,14 @@ class Camera:
         return np.array(frame.get_data())
 
 """ """
+class RosBag:
+    def __init__(path):
+        self.reader =   o3d.t.io.RSBagReader()
+        self.reader.open(path)
+        self.prev_rgbd = None
+        self.img_rgbd = None
+    def capture(self):
+        pass
 if __name__ == "__main__":
     config_path = "/home/nguyen/uni/cv/realsense/demo_calib/data/config4.json"
     camera = Camera(config_path)
