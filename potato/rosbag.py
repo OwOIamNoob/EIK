@@ -12,22 +12,24 @@ i = 0
 world = None
 total_poses = []
 output_vid = cv2.VideoWriter('/home/potato/EIK/potato/data/recorded.avi', 
-                         cv2.VideoWriter_fourcc(*'MJPG'), 
-                         10, 
-                         (640, 480), 
-                         False)
+                         cv2.VideoWriter_fourcc(*'XVID'), 
+                         30.0, 
+                         (640, 480))
 print(type(output_vid))
 while reader.is_eof() is False:
     print("Processing {}-th frame".format(i))
     i += 1
     im_rgbd = reader.next_frame()
-    if i % 3 != 0:
-        continue
-    if i >= 100:
-        break
     color_img = np.asarray(im_rgbd.color)
-    output_vid.write(color_img[:, :, ::-1].astype(np.uint8))
-
+    try:
+        output_vid.write(color_img[:, :, ::-1].astype(np.uint8))
+    except:
+        print("Sthg wrong")
+        continue
+    if i % 5 != 0:
+        continue
+    if i >= 500:
+        break
     # cv2.imwrite("/home/potato/EIK/potato/data/realsense.jpg", color_img.astype(np.uint8))
     depth_img = np.asarray(im_rgbd.depth) / 1000
     # cv2.imwrite("/home/potato/EIK/potato/data/realsense_depth.jpg", (depth_img * 200).astype(np.uint8))
@@ -78,10 +80,10 @@ vertex = pos[:, :, 3].copy()
 # world.voxel_down_sample(voxel_size=0.02)
 fig = plt.subplot(111, projection='3d')
 fig.plot3D(vertex[:, 0], vertex[:, 1], vertex[:, 2])
-
+fig.scatter([0], [0], [0], linewidths=3)
 o3d.visualization.draw_geometries([world.to_legacy()],
                                   zoom=0.3412,
-                                  front=[0.4257, 0, 0.8795],
+                                  front=[0, -0.2, 0.8795],
                                   lookat=[0, 0, 0],
                                   up=[-0.0694, -0.9768, 0.2024])
 plt.show()
