@@ -11,6 +11,7 @@ realsense_intrinsics = np.array([   [609.11572266,   0.,         318.76638794],
                                     [  0.,           0.,           1.        ]], dtype=np.float32)
 
 def aruco_detection(img, debug = False):
+    """ The coordinates are returned in b, n, x, y"""
     output = None
     params = aruco.DetectorParameters()
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
@@ -47,18 +48,19 @@ def finetune_tvec(world_center, depth, pose, intrinsics, export_rvec=False):
     rvec = cv2.Rodrigues(rpos)[0]
     print(rvec.shape)
     print(world_center)
-    dvec = (world_center - intrinsics[2, :2]) / [intrinsics[1, 1], intrinsics[0, 0]]
+    dvec = (world_center - intrinsics[2, :2]) / [intrinsics[0, 0], intrinsics[1, 1]]
     if dvec.shape[0] < 3:
         dvec = np.pad(dvec, (0, 1), 'constant', constant_values=(1,))
     print(dvec, rvec)
-    dvec = rvec @ dvec
+    dvec = dvec @ rvec
     dvec = dvec / np.linalg.norm(dvec)
     return dvec * depth, rvec if export_rvec is True else None
 
 def deproject(rgbd_img, intrinsic, extrinsic):
     return o3d.geometry.create_point_cloud_from_rgbd_image(rgbd_img, 
                                                            intrinsic, 
-                                                           extrinsic)
+                                                           extrinsic,
+                                                           depth_max=20.)
     
 
 
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     dist = np.zeros(5, dtype=np.float32)
 
 
-    img = cv2.imread("EIK/data/img.jpg")
+    img = cv2.imread("/work/hpc/potato/EIK/potato/data/realsense.jpg")
 
     markerIds, markerCorners, output = aruco_detection(img, debug=True)
     print(markerIds, markerCorners, output.shape)
