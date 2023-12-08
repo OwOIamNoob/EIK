@@ -19,8 +19,10 @@ camera_spec = o3d.camera.PinholeCameraIntrinsic(640, 480, instrinsic[0, 0], inst
 i = 0
 world = None
 total_poses = []
-prev_surf = None
-
+prev_des = None
+keys_prev = None
+depth_prev = None
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (16, 10))
 # output_vid = cv2.VideoWriter('/home/potato/EIK/potato/data/recorded.avi', 
 #                          cv2.VideoWriter_fourcc(*'XVID'), 
 #                          30.0, 
@@ -38,7 +40,7 @@ while reader.is_eof() is False:
     #     continue
     if i % 5 != 0:
         continue
-    if i >= 500:
+    if i >= 1100:
         break
     # cv2.imwrite("/home/potato/EIK/potato/data/realsense.jpg", color_img.astype(np.uint8))
     depth_img = np.asarray(im_rgbd.depth) / 1000
@@ -67,19 +69,37 @@ while reader.is_eof() is False:
     # stitching and things, more like constraining the update
     kps, des = surf.detectAndCompute(color_img, None)
     matches = []
-    if prev_surf is None:
-        prev_surf = des.copy()
+    if prev_des is None:
+        prev_des = des
+        keys_prev = np.float32([kp.pt for kp in kps])
+        depth_prev = depth_img
     else:
-        raw = flann_matcher.knnMatch(prev_surf, des, k=3)
+        raw = flann_matcher.knnMatch(prev_des, des, k=3)
         for src in raw:
             if src[0].distance < 0.7 * src[1].distance:
                 matches.append(src[0]) 
-        print(matches)
         keys = np.float32([kp.pt for kp in kps])
-        pts = np.float32([keys[m.queryIdx] for m in matches]).astype(int)
-        convex = cv2.convexHull(pts).reshape(1, -1, 2)
-        print(convex)
-        cv2.drawContours(depth_img, convex, -1, color=(20, ), thickness=cv2.FILLED)
+        pts1 = np.float32([keys[m.trainIdx] for m in matches])
+        pts_prev = np.float32([keys_prev[m.queryIdx] for m in matches])
+        mtx = cv2.findHomography(pts_prev, pts1)[0]
+        print(mtx)
+        warped_mask = cv2.warpPerspective(depth_prev, 
+                                          mtx, 
+                                          (640, 480),
+                                          borderMode=cv2.BORDER_CONSTANT,
+                                          borderValue=10)
+        warped_mask = np.abs(warped_mask - depth_img.squeeze())
+        warped_mask = (warped_mask < 0.02).astype(np.float32)
+        # plt.imshow((warped_mask > 0.5).astype(np.uint8))
+        # plt.show()
+        if np.average(warped_mask) < 0.3:
+            print("Change pov")
+            depth_prev = depth_img.copy()
+            keys_prev = keys.copy()
+            prev_des = des.copy()
+        depth_img[warped_mask > 0.5] = 200
+        
+        # cv2.drawContours(depth_img, convex, -1, color=(20, ), thickness=cv2.FILLED)
 
     depth_img = o3d.core.Tensor((depth_img * 1000).astype(np.uint16))
     im_rgbd.depth = o3d.t.geometry.Image(depth_img)
