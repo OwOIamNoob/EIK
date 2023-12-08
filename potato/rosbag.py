@@ -4,6 +4,14 @@ import aruco
 import cv2 
 import matplotlib.pyplot as plt
 #/home/potato/EIK/potato/data/realsense.bag
+
+# local feature engine
+surf =   cv2.SIFT_create(400)
+FLANN_INDEX_KDTREE = 0
+index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+search_params = dict(checks=50) 
+flann_matcher = cv2.FlannBasedMatcher(index_params,search_params)
+
 reader = o3d.t.io.RSBagReader()
 print(reader.open("/home/potato/EIK/potato/data/realsense.bag"))
 instrinsic = aruco.realsense_intrinsics
@@ -11,21 +19,23 @@ camera_spec = o3d.camera.PinholeCameraIntrinsic(640, 480, instrinsic[0, 0], inst
 i = 0
 world = None
 total_poses = []
-output_vid = cv2.VideoWriter('/home/potato/EIK/potato/data/recorded.avi', 
-                         cv2.VideoWriter_fourcc(*'XVID'), 
-                         30.0, 
-                         (640, 480))
-print(type(output_vid))
+prev_surf = None
+
+# output_vid = cv2.VideoWriter('/home/potato/EIK/potato/data/recorded.avi', 
+#                          cv2.VideoWriter_fourcc(*'XVID'), 
+#                          30.0, 
+#                          (640, 480))
+# print(type(output_vid))
 while reader.is_eof() is False:
     print("Processing {}-th frame".format(i))
     i += 1
     im_rgbd = reader.next_frame()
-    color_img = np.asarray(im_rgbd.color)
-    try:
-        output_vid.write(color_img[:, :, ::-1].astype(np.uint8))
-    except:
-        print("Sthg wrong")
-        continue
+    color_img = np.asarray(im_rgbd.color)[:, :, ::-1].copy()
+    # try:
+    #     output_vid.write(color_img.astype(np.uint8))
+    # except:
+    #     print("Sthg wrong")
+    #     continue
     if i % 5 != 0:
         continue
     if i >= 500:
@@ -54,6 +64,25 @@ while reader.is_eof() is False:
                                             poses[0], 
                                             aruco.realsense_intrinsics,
                                             export_rvec=True)
+    # stitching and things, more like constraining the update
+    kps, des = surf.detectAndCompute(color_img, None)
+    matches = []
+    if prev_surf is None:
+        prev_surf = des.copy()
+    else:
+        raw = flann_matcher.knnMatch(prev_surf, des, k=3)
+        for src in raw:
+            if src[0].distance < 0.7 * src[1].distance:
+                matches.append(src[0]) 
+        print(matches)
+        keys = np.float32([kp.pt for kp in kps])
+        pts = np.float32([keys[m.queryIdx] for m in matches]).astype(int)
+        convex = cv2.convexHull(pts).reshape(1, -1, 2)
+        print(convex)
+        cv2.drawContours(depth_img, convex, -1, color=(20, ), thickness=cv2.FILLED)
+
+    depth_img = o3d.core.Tensor((depth_img * 1000).astype(np.uint16))
+    im_rgbd.depth = o3d.t.geometry.Image(depth_img)
     print("Translation: ", "Old:", poses[0][1], "New", finetuned_tvec, np.linalg.norm(finetuned_tvec), world_depth)
     print("Rotation: ", rodvec, rodvec.shape)
     homo = np.concatenate([rodvec, -finetuned_tvec[np.newaxis, :].T], axis=1)
@@ -64,14 +93,14 @@ while reader.is_eof() is False:
     point_cloud = o3d.t.geometry.PointCloud.create_from_rgbd_image(im_rgbd, 
                                                                 intrinsics=intrinsics, 
                                                                 extrinsics=new_pose,
-                                                                depth_max=20.)
+                                                                depth_max=10.)
     if world is None:
         world = point_cloud.clone()
     else:
         print("Adding")
         world = world.append(point_cloud)
         world.voxel_down_sample(voxel_size=0.05)
-output_vid.release()
+# output_vid.release()
 pos = np.array(total_poses)
 print(pos.shape)
 camera_pov = np.ones((pos.shape[0], 1, 3)) @ pos[:, :, :3]
