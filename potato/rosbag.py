@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 #/home/potato/EIK/potato/data/realsense.bag
 
 # local feature engine
+# Hello ?
 surf =   cv2.SIFT_create(400)
 FLANN_INDEX_KDTREE = 0
 index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
